@@ -222,6 +222,19 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 			ws.WriteMessage(websocket.TextMessage, resp)
 			peer.mu.Unlock()
 
+			// 将房间已有音轨转发给新 peer
+			room.mu.RLock()
+			for uid, t := range room.tracks {
+				if uid != userId {
+					if _, err := pc.AddTrack(t); err != nil {
+						log.Printf("relay track %d to %d failed: %v", uid, userId, err)
+					} else {
+						log.Printf("[SFU] relay existing track %d -> new peer %d", uid, userId)
+					}
+				}
+			}
+			room.mu.RUnlock()
+
 		case "answer":
 			sdp := sig["sdp"].(string)
 			answer := webrtc.SessionDescription{Type: webrtc.SDPTypeAnswer, SDP: sdp}
