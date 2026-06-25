@@ -71,16 +71,15 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 	media.RegisterDefaultCodecs()
 
 	s := webrtc.SettingEngine{}
-	s.SetEphemeralUDPPortRange(50000, 50100)
-	// 放宽 ICE 超时，防止移动网络波动导致频繁断开
-	s.SetICETimeouts(15*time.Second, 30*time.Second, 3*time.Second)
+	// 不限制 UDP 端口范围，让 OS 分配，避免端口冲突导致 ICE consent 响应丢失
+	s.SetICETimeouts(15*time.Second, 30*time.Second, 5*time.Second)
 
 	api := webrtc.NewAPI(webrtc.WithMediaEngine(&media), webrtc.WithSettingEngine(s))
 
 	pc, err := api.NewPeerConnection(webrtc.Configuration{
 		ICEServers: []webrtc.ICEServer{
 			{
-				URLs:       []string{"stun:liuzirui.top:3478", "turn:liuzirui.top:3478?transport=udp"},
+				URLs:       []string{"turn:liuzirui.top:3478?transport=udp"},
 				Username:   "turnuser",
 				Credential: "Vo!ceTURN_2024_liuzirui",
 			},
