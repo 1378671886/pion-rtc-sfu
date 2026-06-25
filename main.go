@@ -80,7 +80,7 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 	s := webrtc.SettingEngine{}
 	s.SetEphemeralUDPPortRange(50000, 50100)
 	if publicIP != "" {
-		s.SetNAT1To1IPs([]string{publicIP}, webrtc.NAT1To1IPCandidateTypeHost)
+		s.SetNAT1To1IPs([]string{publicIP})
 	}
 
 	api := webrtc.NewAPI(webrtc.WithMediaEngine(&media), webrtc.WithSettingEngine(s))
