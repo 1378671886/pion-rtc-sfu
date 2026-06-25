@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/pion/webrtc/v3"
@@ -69,12 +70,18 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 
 	s := webrtc.SettingEngine{}
 	s.SetEphemeralUDPPortRange(50000, 50100)
+	// 放宽 ICE 超时，防止移动网络波动导致频繁断开
+	s.SetICETimeouts(15*time.Second, 30*time.Second, 3*time.Second)
 
 	api := webrtc.NewAPI(webrtc.WithMediaEngine(&media), webrtc.WithSettingEngine(s))
 
 	pc, err := api.NewPeerConnection(webrtc.Configuration{
 		ICEServers: []webrtc.ICEServer{
-			{URLs: []string{"stun:liuzirui.top:3478"}},
+			{
+				URLs:       []string{"stun:liuzirui.top:3478", "turn:liuzirui.top:3478?transport=udp"},
+				Username:   "turnuser",
+				Credential: "Vo!ceTURN_2024_liuzirui",
+			},
 		},
 	})
 	if err != nil {
