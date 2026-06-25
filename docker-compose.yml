@@ -1,0 +1,17 @@
+version: "3.8"
+
+services:
+  sfu:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: pion-sfu
+    restart: always
+    expose:
+      - "8080"
+    networks:
+      - shared
+
+networks:
+  shared:
+    external: true
