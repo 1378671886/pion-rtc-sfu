@@ -124,10 +124,10 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 			p.mu.Lock()
-			if p.pc.ConnectionState() == webrtc.PeerConnectionStateConnected {
-				if _, err := p.pc.AddTrack(localTrack); err != nil {
-					log.Printf("add track to %d failed: %v", uid, err)
-				}
+			if _, err := p.pc.AddTrack(localTrack); err != nil {
+				log.Printf("add track to %d failed: %v", uid, err)
+			} else {
+				log.Printf("[SFU] add track %d -> peer %d", userId, uid)
 			}
 			p.mu.Unlock()
 		}
