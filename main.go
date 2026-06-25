@@ -94,6 +94,21 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 
 	defer func() {
 		room.mu.Lock()
+		// 从其他 peer 移除该用户的 relay track，防止离开重连后 transceiver 累积
+		for uid, p := range room.peers {
+			if uid == userId {
+				continue
+			}
+			for _, sender := range p.pc.GetSenders() {
+				if sender.Track() != nil && sender.Track().StreamID() == strconv.Itoa(userId) {
+					if err := p.pc.RemoveTrack(sender); err != nil {
+						log.Printf("[SFU] remove track %d from %d failed: %v", userId, uid, err)
+					} else {
+						log.Printf("[SFU] removed track %d from peer %d", userId, uid)
+					}
+				}
+			}
+		}
 		delete(room.peers, userId)
 		delete(room.tracks, userId)
 		room.mu.Unlock()
