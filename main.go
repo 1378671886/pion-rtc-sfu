@@ -153,6 +153,7 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 
 	// 当 AddTrack 触发重新协商时
 	pc.OnNegotiationNeeded(func() {
+		log.Printf("[SDP] user %d renegotiation, creating offer", userId)
 		offer, err := pc.CreateOffer(nil)
 		if err != nil {
 			return
@@ -174,6 +175,7 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 		if c == nil {
 			return
 		}
+		log.Printf("[ICE] user %d candidate: %s", userId, c.ToJSON().Candidate)
 		data, _ := json.Marshal(map[string]interface{}{
 			"type":      "ice",
 			"candidate": c.ToJSON().Candidate,
@@ -183,6 +185,10 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 		peer.mu.Lock()
 		ws.WriteMessage(websocket.TextMessage, data)
 		peer.mu.Unlock()
+	})
+
+	pc.OnICEConnectionStateChange(func(state webrtc.ICEConnectionState) {
+		log.Printf("[ICE] user %d state: %s", userId, state.String())
 	})
 
 	// 信令循环
@@ -199,6 +205,7 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 
 		switch sig["type"] {
 		case "offer":
+			log.Printf("[SDP] user %d sent offer", userId)
 			sdp := sig["sdp"].(string)
 			offer := webrtc.SessionDescription{Type: webrtc.SDPTypeOffer, SDP: sdp}
 			if err := pc.SetRemoteDescription(offer); err != nil {
@@ -236,6 +243,7 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 			room.mu.RUnlock()
 
 		case "answer":
+			log.Printf("[SDP] user %d sent answer", userId)
 			sdp := sig["sdp"].(string)
 			answer := webrtc.SessionDescription{Type: webrtc.SDPTypeAnswer, SDP: sdp}
 			if err := pc.SetRemoteDescription(answer); err != nil {
