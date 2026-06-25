@@ -67,7 +67,10 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 	media := webrtc.MediaEngine{}
 	media.RegisterDefaultCodecs()
 
-	api := webrtc.NewAPI(webrtc.WithMediaEngine(&media))
+	s := webrtc.SettingEngine{}
+	s.SetEphemeralUDPPortRange(50000, 50100)
+
+	api := webrtc.NewAPI(webrtc.WithMediaEngine(&media), webrtc.WithSettingEngine(s))
 
 	pc, err := api.NewPeerConnection(webrtc.Configuration{
 		ICEServers: []webrtc.ICEServer{
