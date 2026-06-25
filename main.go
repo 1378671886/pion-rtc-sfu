@@ -145,16 +145,7 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 		}
 
 		room.mu.Lock()
-		// 同一用户重连时，先移除旧 track 防止 msid 重复
-		if oldTrack := room.tracks[userId]; oldTrack != nil {
-			for _, p := range room.peers {
-				for _, sender := range p.pc.GetSenders() {
-					if sender.Track() == oldTrack {
-						p.pc.RemoveTrack(sender)
-					}
-				}
-			}
-		}
+		oldTrack := room.tracks[userId]
 		room.tracks[userId] = localTrack
 
 		// 添加到所有其他 peer（跳过未完成初始握手的 peer，避免 SDP 撞车）
@@ -162,10 +153,33 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 			if uid == userId || !p.ready {
 				continue
 			}
-			if _, err := p.pc.AddTrack(localTrack); err != nil {
-				log.Printf("add track to %d failed: %v", uid, err)
+			if oldTrack != nil {
+				// 已有旧 track：用 ReplaceTrack 原地替换，不触发 renegotiation，避免 msid 重复
+				replaced := false
+				for _, sender := range p.pc.GetSenders() {
+					if sender.Track() == oldTrack {
+						if err := sender.ReplaceTrack(localTrack); err != nil {
+							log.Printf("replace track %d for peer %d failed: %v", userId, uid, err)
+						} else {
+							log.Printf("[SFU] replaced track %d -> peer %d (old=%s new=%s)", userId, uid, oldTrack.ID(), localTrack.ID())
+						}
+						replaced = true
+						break
+					}
+				}
+				if !replaced {
+					log.Printf("[SFU] old track %d not found in peer %d senders, adding new", userId, uid)
+					if _, err := p.pc.AddTrack(localTrack); err != nil {
+						log.Printf("add track to %d failed: %v", uid, err)
+					}
+				}
 			} else {
-				log.Printf("[SFU] add track %d -> peer %d", userId, uid)
+				// 首次：正常添加
+				if _, err := p.pc.AddTrack(localTrack); err != nil {
+					log.Printf("add track to %d failed: %v", uid, err)
+				} else {
+					log.Printf("[SFU] add track %d -> peer %d", userId, uid)
+				}
 			}
 		}
 		room.mu.Unlock()
@@ -182,9 +196,11 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		// track 结束，清理
+		// track 结束，仅当 map 仍指向本 track 才清理（防止旧 track 误删新 track）
 		room.mu.Lock()
-		delete(room.tracks, userId)
+		if room.tracks[userId] == localTrack {
+			delete(room.tracks, userId)
+		}
 		room.mu.Unlock()
 	})
 
