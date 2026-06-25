@@ -122,8 +122,8 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 		// 创建本地 relay track，streamId 带上 userId 方便前端识别
 		localTrack, err := webrtc.NewTrackLocalStaticRTP(
 			track.Codec().RTPCodecCapability,
-			strconv.Itoa(userId),
 			"audio",
+			strconv.Itoa(userId),
 		)
 		if err != nil {
 			log.Println("create relay track:", err)
