@@ -3,9 +3,7 @@ package main
 import (
 	"encoding/json"
 	"log"
-	"net"
 	"net/http"
-	"os"
 	"strconv"
 	"sync"
 
@@ -66,27 +64,15 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 	}
 	defer ws.Close()
 
-	publicIP := os.Getenv("PUBLIC_IP")
-	if publicIP == "" {
-		if ips, err := net.LookupIP("liuzirui.top"); err == nil && len(ips) > 0 {
-			publicIP = ips[0].String()
-		}
-	}
-	log.Printf("[SFU] public IP: %s", publicIP)
-
 	media := webrtc.MediaEngine{}
 	media.RegisterDefaultCodecs()
 
-	s := webrtc.SettingEngine{}
-	s.SetEphemeralUDPPortRange(50000, 50100)
-	if publicIP != "" {
-		s.SetNAT1To1IPs([]string{publicIP}, webrtc.ICECandidateTypeHost)
-	}
-
-	api := webrtc.NewAPI(webrtc.WithMediaEngine(&media), webrtc.WithSettingEngine(s))
+	api := webrtc.NewAPI(webrtc.WithMediaEngine(&media))
 
 	pc, err := api.NewPeerConnection(webrtc.Configuration{
-		ICEServers: []webrtc.ICEServer{},
+		ICEServers: []webrtc.ICEServer{
+			{URLs: []string{"stun:liuzirui.top:3478"}},
+		},
 	})
 	if err != nil {
 		log.Println("pc create:", err)
@@ -273,6 +259,6 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	http.HandleFunc("/sfu-ws", handleWS)
-	log.Println("[SFU] pion-sfu listening on :8080")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	log.Println("[SFU] pion-sfu listening on 127.0.0.1:8080")
+	log.Fatal(http.ListenAndServe("127.0.0.1:8080", nil))
 }
