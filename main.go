@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -132,11 +133,10 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 	pc.OnTrack(func(track *webrtc.TrackRemote, receiver *webrtc.RTPReceiver) {
 		log.Printf("[SFU] track from %d: %s", userId, track.Codec().MimeType)
 
-		// 创建本地 relay track，streamId 带上 userId 方便前端识别
-		// id 留空让 pion 自动生成 UUID，防止同用户重连时 msid 重复
+		// 创建本地 relay track，用 userId+SSRC 保证 track ID 唯一，防止 msid 重复
 		localTrack, err := webrtc.NewTrackLocalStaticRTP(
 			track.Codec().RTPCodecCapability,
-			"",
+			fmt.Sprintf("audio-%d-%d", userId, track.SSRC()),
 			strconv.Itoa(userId),
 		)
 		if err != nil {
