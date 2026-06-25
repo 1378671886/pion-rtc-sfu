@@ -3,7 +3,9 @@ package main
 import (
 	"encoding/json"
 	"log"
+	"net"
 	"net/http"
+	"os"
 	"strconv"
 	"sync"
 
@@ -64,18 +66,27 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 	}
 	defer ws.Close()
 
+	publicIP := os.Getenv("PUBLIC_IP")
+	if publicIP == "" {
+		if ips, err := net.LookupIP("liuzirui.top"); err == nil && len(ips) > 0 {
+			publicIP = ips[0].String()
+		}
+	}
+	log.Printf("[SFU] public IP: %s", publicIP)
+
 	media := webrtc.MediaEngine{}
 	media.RegisterDefaultCodecs()
 
 	s := webrtc.SettingEngine{}
 	s.SetEphemeralUDPPortRange(50000, 50100)
+	if publicIP != "" {
+		s.SetNAT1To1IPs([]string{publicIP}, webrtc.NAT1To1IPCandidateTypeHost)
+	}
 
 	api := webrtc.NewAPI(webrtc.WithMediaEngine(&media), webrtc.WithSettingEngine(s))
 
 	pc, err := api.NewPeerConnection(webrtc.Configuration{
-		ICEServers: []webrtc.ICEServer{
-			{URLs: []string{"stun:liuzirui.top:3478"}},
-		},
+		ICEServers: []webrtc.ICEServer{},
 	})
 	if err != nil {
 		log.Println("pc create:", err)
