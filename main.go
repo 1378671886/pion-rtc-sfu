@@ -94,6 +94,11 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 
 	defer func() {
 		room.mu.Lock()
+		// 仅当该 userId 仍指向当前 peer 时才清理（防止误删重连后的新 peer）
+		if room.peers[userId] != peer {
+			room.mu.Unlock()
+			return
+		}
 		// 从其他 peer 移除该用户的 relay track，防止离开重连后 transceiver 累积
 		for uid, p := range room.peers {
 			if uid == userId {
@@ -133,7 +138,7 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 		room.mu.Lock()
 		room.tracks[userId] = localTrack
 
-		// 添加到所有其他 peer
+		// 添加到所有其他 peer（不加 peer mutex：AddTrack 触发的 OnNegotiationNeeded 会锁同一把锁，导致死锁）
 		for uid, p := range room.peers {
 			if uid == userId {
 				continue
@@ -207,6 +212,7 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 	for {
 		_, msg, err := ws.ReadMessage()
 		if err != nil {
+			log.Printf("[SFU] ws read error user %d: %v", userId, err)
 			break
 		}
 
