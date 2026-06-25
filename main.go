@@ -90,21 +90,7 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		room.mu.Lock()
 		delete(room.peers, userId)
-		relayTrack := room.tracks[userId]
-		if relayTrack != nil {
-			delete(room.tracks, userId)
-		}
-		// 通知其他人重新协商（移除此用户的 track）
-		for _, p := range room.peers {
-			p.mu.Lock()
-			if p.pc.ConnectionState() == webrtc.PeerConnectionStateConnected && relayTrack != nil {
-				p.pc.RemoveTrack(relayTrack)
-			}
-			p.mu.Unlock()
-		}
-		if relayTrack != nil {
-			relayTrack.Close()
-		}
+		delete(room.tracks, userId)
 		room.mu.Unlock()
 		log.Printf("[SFU] user %d left room %s (%d peers)", userId, roomId, len(room.peers))
 	}()
