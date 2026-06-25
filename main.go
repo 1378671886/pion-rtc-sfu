@@ -190,7 +190,6 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 		if c == nil {
 			return
 		}
-		log.Printf("[ICE] user %d candidate: %s", userId, c.ToJSON().Candidate)
 		data, _ := json.Marshal(map[string]interface{}{
 			"type":      "ice",
 			"candidate": c.ToJSON().Candidate,
