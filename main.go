@@ -17,11 +17,12 @@ var upgrader = websocket.Upgrader{
 }
 
 type Peer struct {
-	ws   *websocket.Conn
-	pc   *webrtc.PeerConnection
-	room string
-	user int
-	mu   sync.Mutex
+	ws    *websocket.Conn
+	pc    *webrtc.PeerConnection
+	room  string
+	user  int
+	mu    sync.Mutex
+	ready bool // 初始握手完成后置 true，防止 OnTrack 往未就绪 peer 加 track
 }
 
 type Room struct {
@@ -145,9 +146,9 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 		room.mu.Lock()
 		room.tracks[userId] = localTrack
 
-		// 添加到所有其他 peer（不加 peer mutex：AddTrack 触发的 OnNegotiationNeeded 会锁同一把锁，导致死锁）
+		// 添加到所有其他 peer（跳过未完成初始握手的 peer，避免 SDP 撞车）
 		for uid, p := range room.peers {
-			if uid == userId {
+			if uid == userId || !p.ready {
 				continue
 			}
 			if _, err := p.pc.AddTrack(localTrack); err != nil {
@@ -253,6 +254,11 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 			peer.mu.Lock()
 			ws.WriteMessage(websocket.TextMessage, resp)
 			peer.mu.Unlock()
+
+			// 标记初始握手完成，此后 OnTrack 可以安全往该 peer 加 track
+			if !peer.ready {
+				peer.ready = true
+			}
 
 			// 将房间已有音轨转发给新 peer
 			room.mu.RLock()
