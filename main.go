@@ -133,9 +133,10 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[SFU] track from %d: %s", userId, track.Codec().MimeType)
 
 		// 创建本地 relay track，streamId 带上 userId 方便前端识别
+		// id 留空让 pion 自动生成 UUID，防止同用户重连时 msid 重复
 		localTrack, err := webrtc.NewTrackLocalStaticRTP(
 			track.Codec().RTPCodecCapability,
-			"audio",
+			"",
 			strconv.Itoa(userId),
 		)
 		if err != nil {
@@ -144,6 +145,16 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 		}
 
 		room.mu.Lock()
+		// 同一用户重连时，先移除旧 track 防止 msid 重复
+		if oldTrack := room.tracks[userId]; oldTrack != nil {
+			for _, p := range room.peers {
+				for _, sender := range p.pc.GetSenders() {
+					if sender.Track() == oldTrack {
+						p.pc.RemoveTrack(sender)
+					}
+				}
+			}
+		}
 		room.tracks[userId] = localTrack
 
 		// 添加到所有其他 peer（跳过未完成初始握手的 peer，避免 SDP 撞车）
