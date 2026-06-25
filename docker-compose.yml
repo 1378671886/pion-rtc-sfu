@@ -5,6 +5,8 @@ services:
       dockerfile: Dockerfile
     container_name: pion-sfu
     restart: always
+    ports:
+      - "50000-50100:50000-50100/udp"
     expose:
       - "8080"
     networks:

@@ -64,13 +64,18 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 	}
 	defer ws.Close()
 
-	// 创建 PeerConnection，只收 Opus 音频
 	media := webrtc.MediaEngine{}
 	media.RegisterDefaultCodecs()
-	api := webrtc.NewAPI(webrtc.WithMediaEngine(&media))
+
+	s := webrtc.SettingEngine{}
+	s.SetEphemeralUDPPortRange(50000, 50100)
+
+	api := webrtc.NewAPI(webrtc.WithMediaEngine(&media), webrtc.WithSettingEngine(s))
 
 	pc, err := api.NewPeerConnection(webrtc.Configuration{
-		ICEServers: []webrtc.ICEServer{},
+		ICEServers: []webrtc.ICEServer{
+			{URLs: []string{"stun:liuzirui.top:3478"}},
+		},
 	})
 	if err != nil {
 		log.Println("pc create:", err)
