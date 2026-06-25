@@ -138,13 +138,11 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 			if uid == userId {
 				continue
 			}
-			p.mu.Lock()
 			if _, err := p.pc.AddTrack(localTrack); err != nil {
 				log.Printf("add track to %d failed: %v", uid, err)
 			} else {
 				log.Printf("[SFU] add track %d -> peer %d", userId, uid)
 			}
-			p.mu.Unlock()
 		}
 		room.mu.Unlock()
 
